@@ -1,0 +1,40 @@
+package wgsn
+
+import groovy.json.*
+
+class JsonConvert {
+
+	static void main(String[] args) {
+
+        	if (args.size() != 2) {
+            		println "Usage [Filename of CQ JSON] [URI of output UTF8 file]"
+            		return
+       		}
+
+		def jsonSource = new File(args[0])
+
+		if(!jsonSource.exists()){
+			println "The JSON source file does not exist. Please double check your path"
+			return
+		}	
+
+		def outFile = new File(args[1])
+
+		if(outFile.exists()){
+			outFile.delete()
+		}
+
+		long timestamp = System.currentTimeMillis()
+
+		def paths = new JsonSlurper().parseText(jsonSource.text).hits*.path
+		
+		paths.each { def path ->
+			String outStr = "${timestamp}\tACTIVATE\t${path}"
+			println outStr
+			outFile << outStr
+		}
+
+		println "Done"
+
+	}
+}
