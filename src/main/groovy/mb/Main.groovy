@@ -25,7 +25,10 @@ class Main {
                 'dah': [required: false, defaultValue: 'localhost'],
                 'dahport': [required: false, defaultValue: '16554'],
                 'outputdir': [required: false, defaultValue: 'queries'],
-                'maxrecords': [required: false, defaultValue: '100000']
+                'maxrecords': [required: false, defaultValue: '100000'],
+                'queryparameters': [required: false, defaultValue: ''],
+                'dryrun': [required: false, defaultValue: ''],
+                'dryrundoccount': [required: false, defaultValue: '200000']
         ]
 
         ApplicationContext ctx =
@@ -41,77 +44,98 @@ class Main {
 
         def errorOutputter = { println it }
 
-        if (argumentsValidatorInteractor.isValid(errorOutputter, defaultArguments, arguments)) {
+        if (!argumentsValidatorInteractor.isValid(errorOutputter, defaultArguments, arguments)) {
+            return
+        }
 
-            Map settingsMap = argumentsMerge.merge(defaultArguments, arguments)
+        Map settingsMap = argumentsMerge.merge(defaultArguments, arguments)
 
-            println arguments
-            println settingsMap
-
-            def outputDirectory = new File(settingsMap.outputdir.toString())
-
-
-            if (!outputDirectory.exists() && !outputDirectory.mkdirs()) {
-                println "Failed to create output directory. Quitting"
-                return
-            }
-
-            Long docCount = fetchDocumentCount(settingsMap.dah, settingsMap.dahport)
-
-            Long maxRecords = Math.min(settingsMap.maxrecords.toLong(), docCount)
-
-            Long start = 1
-
-            while (start < docCount) {
-
-                def end = start + maxRecords
-
-                def filename = "${settingsMap.outputdir}/${start}-${end}.xml"
-                String requestUri = "${buildIdolQuery(settingsMap.dah, settingsMap.dahport)}action=query&PrintFields=DUPEDREREFERENCE&maxresults=${end}&start=${start}"
-
-                println "Fetching ${start} to ${end} of ${docCount} to ${filename}"
-                println "Request: ${requestUri}"
+        def outputDirectory = new File(settingsMap.outputdir.toString())
 
 
-                try {
-                    File f = new File(filename)
+        if (!outputDirectory.exists() && !outputDirectory.mkdirs()) {
+            println "Failed to create output directory. Quitting"
+            return
+        }
 
-                    if (!f.exists()) {
+        if (settingsMap.dryrun) println "Dry-run mode"
 
-                        println "Fetch: ${requestUri}"
+        Long docCount = settingsMap.dryrun ? dryrundoccount.toLong() : fetchDocumentCount(settingsMap.dah, settingsMap.dahport)
 
-                        f.write(new URL(requestUri).text)
+        Long maxRecords = Math.min(settingsMap.maxrecords.toLong(), docCount)
+
+        Long offset = 1
+
+        while (offset < docCount) {
+
+            Long offsetEnd = offset + maxRecords
+
+            String filename = buildOutputFilename(settingsMap, offset, offsetEnd)
+            String requestUri = buildAutonomyRequestUri(settingsMap, offsetEnd, offset)
+
+            println "Fetching ${offset} to ${offsetEnd} of ${docCount} to ${filename}"
+            println "Request: ${requestUri}"
+
+            File f = new File(filename)
+
+            try {
+
+                if (!f.exists()) {
+
+                    if (!settingsMap.dryrun) {
+
+                        def xml = new URL(requestUri).text
+                        f.write(xml)
+                        docCount = parseDocumentCount(xml)
+
                     }
 
-
-                    start += maxRecords
-                } catch (IOException ex) {
-
-                    ex.printStackTrace()
                 }
+
+
+                offset += maxRecords
+            } catch (IOException ex) {
+
+                if (f.exists()) {
+                    f.delete()
+                }
+                ex.printStackTrace()
             }
         }
 
+
         println "Finished"
+    }
+
+    private String buildOutputFilename(Map settingsMap, long start, end) {
+        "${settingsMap.outputdir}/${start}-${end}.xml"
+    }
+
+    private String buildAutonomyRequestUri(Map settingsMap, end, long start) {
+        String requestUri = "${buildIdolQuery(settingsMap.dah, settingsMap.dahport)}action=query&PrintFields=DUPEDREREFERENCE&maxresults=${end}&start=${start}${settingsMap.queryparameters}"
+        requestUri
     }
 
     long fetchDocumentCount(String dah, String port) {
 
         String uri = buildIdolQuery(dah, port) + "action=query&totalresults=true"
+        println "Requesting doc count with: ${uri}"
 
+        def xml = new URL(uri).text
+        parseDocumentCount(xml)
+    }
 
-        def foo = new XmlSlurper().parse(uri).declareNamespace(autn: 'http://www.autonomy.com')
-
-        println foo.responsedata.'autn:totaldbdocs'
+    long parseDocumentCount(String xml) {
 
         def builder = DocumentBuilderFactory.newInstance().newDocumentBuilder()
-        def inputStream = new ByteArrayInputStream(new URL(uri).text.bytes)
+        def inputStream = new ByteArrayInputStream(xml.bytes)
         def records = builder.parse(inputStream).documentElement
 
         def r = XPathAPI.selectNodeList(records, '//*[local-name()=\'totaldbsecs\']/text()')
 
         r.item(0).data.toLong()
     }
+
 
     String buildIdolQuery(String dah, String port) {
         "http://${dah}:${port}/"

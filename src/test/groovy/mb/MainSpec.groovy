@@ -15,23 +15,4 @@ class MainSpec extends Specification {
         main.argumentsValidatorInteractor = Mock(ArgumentsValidatorInteractor)
     }
 
-
-    def 'run invalid args'() {
-
-        given:
-        List<String> arguments = ['--username', 'test', '--password', 'test']
-        Map defaults = [
-                outputfile: 'test',
-                bitbucketurl: 'uri',
-                bitbucketrepouri: 'resourrce'
-        ]
-
-        when:
-        main.run(defaults, arguments)
-
-        then:
-        1 * main.argumentsValidatorInteractor.isValid({ true }, defaults, arguments) >> false
-        0 * _._
-
-    }
 }
