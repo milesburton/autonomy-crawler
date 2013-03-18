@@ -60,7 +60,7 @@ class Main {
 
         if (settingsMap.dryrun) println "Dry-run mode"
 
-        Long docCount = settingsMap.dryrun ? dryrundoccount.toLong() : fetchDocumentCount(settingsMap.dah, settingsMap.dahport)
+        Long docCount = settingsMap.dryrun ?  settingsMap.dryrundoccount.toLong() : fetchDocumentCount(settingsMap.dah, settingsMap.dahport)
 
         Long maxRecords = Math.min(settingsMap.maxrecords.toLong(), docCount)
 
