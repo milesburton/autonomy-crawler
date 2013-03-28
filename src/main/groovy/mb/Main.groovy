@@ -112,13 +112,13 @@ class Main {
     }
 
     private String buildAutonomyRequestUri(Map settingsMap, end, long start) {
-        String requestUri = "${buildIdolQuery(settingsMap.dah, settingsMap.dahport)}action=query&PrintFields=DUPEDREREFERENCE&maxresults=${end}&start=${start}${settingsMap.queryparameters}"
+        String requestUri = "${buildIdolQuery(settingsMap.dah, settingsMap.dahport)}action=query&totalresults=true&predict=false&PrintFields=DUPEDREREFERENCE&maxresults=${end}&start=${start}${settingsMap.queryparameters}"
         requestUri
     }
 
     long fetchDocumentCount(String dah, String port) {
 
-        String uri = buildIdolQuery(dah, port) + "action=query&totalresults=true"
+        String uri = buildIdolQuery(dah, port) + "action=query&totalresults=true&predict=false"
         println "Requesting doc count with: ${uri}"
 
         def xml = new URL(uri).text
